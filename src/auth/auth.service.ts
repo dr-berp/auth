@@ -35,8 +35,6 @@ export class AuthService extends PrismaClient implements OnModuleInit {
 
       const isValidPassword = bcrypt.compareSync(password, user.password);
 
-      console.log(isValidPassword);
-
       if (!isValidPassword)
         throw new RpcException({
           status: HttpStatus.UNAUTHORIZED,

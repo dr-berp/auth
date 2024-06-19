@@ -26,7 +26,7 @@ export class UsersService extends PrismaClient implements OnModuleInit {
     const { page, limit } = paginationDto;
     const isAdmin = hasRoles(user.roles, [Role.Admin]);
 
-    const where = isAdmin ? {} : { enabled: true };
+    const where = isAdmin ? {} : { deletedAt: null };
     const total = await this.user.count({ where });
     const lastPage = Math.ceil(total / limit);
 
@@ -112,6 +112,21 @@ export class UsersService extends PrismaClient implements OnModuleInit {
     };
   }
 
+  async findOneWithSummary(id: string) {
+    const user = await this.user.findUnique({
+      where: { id },
+      select: { id: true, username: true, email: true },
+    });
+
+    if (!user)
+      throw new RpcException({
+        status: HttpStatus.NOT_FOUND,
+        message: `User with id ${id} not found`,
+      });
+
+    return user;
+  }
+
   async update(updateUserDto: UpdateUserDto) {
     const { id, ...data } = updateUserDto;
 
@@ -123,24 +138,24 @@ export class UsersService extends PrismaClient implements OnModuleInit {
   async remove(id: string) {
     const user = await this.findOne(id);
 
-    if (!user.enabled)
+    if (user.deletedAt)
       throw new RpcException({
         status: HttpStatus.CONFLICT,
         message: `User with id ${id} is already disabled`,
       });
 
-    return this.user.update({ where: { id }, data: { enabled: false, deletedAt: new Date() } });
+    return this.user.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   async restore(id: string) {
     const user = await this.findOne(id);
 
-    if (user.enabled)
+    if (user.deletedAt === null)
       throw new RpcException({
         status: HttpStatus.CONFLICT,
         message: `User with id ${id} is already enabled`,
       });
 
-    return this.user.update({ where: { id }, data: { enabled: true, deletedAt: null } });
+    return this.user.update({ where: { id }, data: { deletedAt: null } });
   }
 }
